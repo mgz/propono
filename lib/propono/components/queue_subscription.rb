@@ -26,19 +26,19 @@ module Propono
     end
 
     def create_and_subscribe_main_queue
-      @queue = aws_client.create_queue(queue_name: "#{queue_name}.fifo", attributes: { FifoQueue: true })
+      @queue = aws_client.create_queue("#{queue_name}.fifo", { FifoQueue: true })
       topic = aws_client.create_topic(@suffixed_topic_name)
       aws_client.subscribe_sqs_to_sns(@queue, topic)
       aws_client.set_sqs_policy(@queue, generate_policy(@queue, topic))
     end
 
     def create_misc_queues
-      @failed_queue = aws_client.create_queue(queue_name: "#{queue_name}-failed.fifo", attributes: { FifoQueue: true })
-      @corrupt_queue = aws_client.create_queue(queue_name: "#{queue_name}-corrupt.fifo", attributes: { FifoQueue: true })
+      @failed_queue = aws_client.create_queue("#{queue_name}-failed.fifo", { FifoQueue: true })
+      @corrupt_queue = aws_client.create_queue("#{queue_name}-corrupt.fifo", { FifoQueue: true })
     end
 
     def create_and_subscribe_slow_queue
-      @slow_queue = aws_client.create_queue(queue_name: "#{queue_name}-slow.fifo", attributes: { FifoQueue: true })
+      @slow_queue = aws_client.create_queue("#{queue_name}-slow.fifo", { FifoQueue: true })
       slow_topic = aws_client.create_topic(@suffixed_slow_topic_name)
       aws_client.subscribe_sqs_to_sns(@slow_queue, slow_topic)
       aws_client.set_sqs_policy(@slow_queue, generate_policy(@slow_queue, slow_topic))

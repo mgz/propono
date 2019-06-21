@@ -26,9 +26,10 @@ module Propono
       Topic.new(sns_client.create_topic(name: name))
     end
 
-    def create_queue(name)
+    def create_queue(name, aditional_attributes)
       url = sqs_client.create_queue(queue_name: name).queue_url
       attributes = sqs_client.get_queue_attributes(queue_url: url, attribute_names: ["QueueArn"]).attributes
+      attributes.merge!(aditional_attributes)
       Queue.new(url, attributes)
     end
 

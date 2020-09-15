@@ -87,15 +87,6 @@ module Propono
       message_processor.call(sqs_message.message)
     end
 
-    def move_to_corrupt_queue(raw_sqs_message)
-      aws_client.send_to_sqs(corrupt_queue, raw_sqs_message.body)
-    end
-
-    def requeue_message_on_failure(sqs_message, exception)
-      next_queue = (sqs_message.failure_count < propono_config.max_retries) ? main_queue : failed_queue
-      propono_config.logger.error "Error processing message, moving to queue: #{next_queue}"
-    end
-
     def delete_message(raw_sqs_message, queue)
       aws_client.delete_from_sqs(queue, raw_sqs_message.receipt_handle)
     end

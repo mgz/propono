@@ -7,15 +7,18 @@ module Propono
       @aws_config = aws_config
     end
 
-    def send_to_sqs(queue, message)
+    def send_to_sqs(queue, message, message_group_id)
       sqs_client.send_message(
         queue_url: queue.url,
-        message_body: message.to_json
+        message_body: message.to_json,
+        message_group_id: message_group_id,
+        message_deduplication_id: SecureRandom.uuid
       )
     end
 
     def create_queue(name, aditional_attributes)
-      url = sqs_client.create_queue(queue_name: name).queue_url
+      name += '.fifo' unless name.end_with? '.fifo'
+      url = sqs_client.create_queue(queue_name: name, attributes: { 'FifoQueue' => 'true' }).queue_url
       attributes = sqs_client.get_queue_attributes(queue_url: url, attribute_names: ["QueueArn"]).attributes
       attributes.merge!(aditional_attributes)
       Queue.new(url, attributes)

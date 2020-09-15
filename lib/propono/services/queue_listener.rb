@@ -28,14 +28,12 @@ module Propono
     def drain
       raise ProponoError.new("topic_name is nil") unless topic_name
       true while read_messages_from_queue(main_queue, 10, long_poll: false)
-      true while read_messages_from_queue(slow_queue, 10, long_poll: false)
     end
 
     private
 
     def read_messages
-      read_messages_from_queue(main_queue, propono_config.num_messages_per_poll) ||
-      read_messages_from_queue(slow_queue, 1)
+      read_messages_from_queue(main_queue, propono_config.num_messages_per_poll)
     end
 
     def read_messages_from_queue(queue, num_messages, long_poll: true)
@@ -62,18 +60,13 @@ module Propono
       sqs_message = parse(raw_sqs_message, queue)
       return unless sqs_message
 
-      propono_config.logger.info "Propono [#{sqs_message.context[:id]}]: Received from sqs."
+      propono_config.logger.info "Propono: Received from sqs."
       handle(sqs_message)
       aws_client.delete_from_sqs(queue, sqs_message.receipt_handle)
     end
 
     def parse(raw_sqs_message, queue)
       SqsMessage.new(raw_sqs_message)
-    rescue
-      propono_config.logger.error "Error parsing message, moving to corrupt queue", $!, $!.backtrace
-      move_to_corrupt_queue(raw_sqs_message)
-      aws_client.delete_from_sqs(queue, raw_sqs_message.receipt_handle)
-      nil
     end
 
     def handle(sqs_message)
@@ -85,17 +78,7 @@ module Propono
 
     def process_message(sqs_message)
       return false unless message_processor
-      message_processor.call(sqs_message.message, sqs_message.context)
-    end
-
-    def move_to_corrupt_queue(raw_sqs_message)
-      aws_client.send_to_sqs(corrupt_queue, raw_sqs_message.body)
-    end
-
-    def requeue_message_on_failure(sqs_message, exception)
-      next_queue = (sqs_message.failure_count < propono_config.max_retries) ? main_queue : failed_queue
-      propono_config.logger.error "Error processing message, moving to queue: #{next_queue}"
-      aws_client.send_to_sqs(next_queue, sqs_message.to_json_with_exception(exception))
+      message_processor.call(sqs_message.message)
     end
 
     def delete_message(raw_sqs_message, queue)
@@ -104,18 +87,6 @@ module Propono
 
     def main_queue
       @main_queue ||= subscription.queue
-    end
-
-    def failed_queue
-      @failed_queue ||= subscription.failed_queue
-    end
-
-    def corrupt_queue
-      @corrupt_queue ||= subscription.corrupt_queue
-    end
-
-    def slow_queue
-      @slow_queue ||= subscription.slow_queue
     end
 
     def subscription

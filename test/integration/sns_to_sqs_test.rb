@@ -9,13 +9,11 @@ module Propono
       message_received = false
 
       propono_client.drain_queue(topic)
-      propono_client.subscribe(topic)
 
       thread = Thread.new do
         begin
-          propono_client.listen(topic) do |message, context|
+          propono_client.listen(topic) do |message|
             flunks << "Wrong message" unless message == text
-            flunks << "Wrong id" unless context[:id] =~ Regexp.new("[a-z0-9]{6}")
             message_received = true
             thread.terminate
           end
@@ -34,7 +32,7 @@ module Propono
 
       sleep(1) # Make sure the listener has started
 
-      propono_client.publish(topic, text)
+      propono_client.publish(topic, text, message_group_id: SecureRandom.hex)
       flunks << "Test Timeout" unless wait_for_thread(thread)
       flunk(flunks.join("\n")) unless flunks.empty?
     ensure

@@ -4,7 +4,7 @@ module Propono
   class PublisherTest < Minitest::Test
 
     def test_initialization
-      publisher = Publisher.new(aws_client, propono_config, 'topic', 'message')
+      publisher = Publisher.new(aws_client, propono_config, 'topic', 'message', message_group_id: 't-1')
       refute publisher.nil?
     end
 
@@ -16,7 +16,7 @@ module Propono
     end
 
     def test_initializer_generates_an_id
-      publisher = Publisher.new(aws_client, propono_config, 'x','y')
+      publisher = Publisher.new(aws_client, propono_config, 'x','y', message_group_id: 't-1')
       assert publisher.instance_variable_get(:@id)
     end
 
@@ -24,17 +24,17 @@ module Propono
       id = "q1w2e3"
       hex = "313abd"
       SecureRandom.expects(:hex).with(3).returns(hex)
-      publisher = Publisher.new(aws_client, propono_config, 'x','y', id: id)
+      publisher = Publisher.new(aws_client, propono_config, 'x','y', id: id, message_group_id: 't-1')
       assert_equal "#{id}-#{hex}", publisher.id
     end
 
     def test_self_publish_calls_publish
       Publisher.any_instance.expects(:publish)
-      Publisher.publish(aws_client, propono_config, "topic", "message")
+      Publisher.publish(aws_client, propono_config, "topic", "message", message_group_id: 't-1')
     end
 
     def test_publish_logs
-      publisher = Publisher.new(aws_client, propono_config, "foo", "bar")
+      publisher = Publisher.new(aws_client, propono_config, "foo", "bar", message_group_id: 't-1')
       publisher.instance_variable_set(:@id, 'abc')
       publisher.stubs(:publish_syncronously)
       propono_config.logger.expects(:info).with {|x| x =~ /^Propono \[abc\]: Publishing bar to foo.*/}
@@ -50,13 +50,14 @@ module Propono
       topic_arn = "arn123"
       topic.stubs(arn: topic_arn)
 
-      aws_client.expects(:create_topic).with(topic_name).returns(topic)
-      aws_client.expects(:publish_to_sns).with(
+      aws_client.expects(:create_queue).with(topic_name, {:FifoQueue => true}).returns(topic)
+      aws_client.expects(:send_to_sqs).with(
         topic,
-        {id: id, message: message}
+        {id: id, message: message},
+        't-1'
       )
 
-      publisher = Publisher.new(aws_client, propono_config, topic_name, message)
+      publisher = Publisher.new(aws_client, propono_config, topic_name, message, message_group_id: 't-1')
       publisher.stubs(id: id)
       publisher.publish
     end
@@ -75,10 +76,10 @@ module Propono
       topic_arn = "arn123"
       topic.stubs(arn: topic_arn)
 
-      aws_client.expects(:create_topic).with(topic_name).returns(topic)
-      aws_client.expects(:publish_to_sns).with(topic, body)
+      aws_client.expects(:create_queue).with(topic_name, {:FifoQueue => true}).returns(topic)
+      aws_client.expects(:send_to_sqs).with(topic, body, 't-1')
 
-      publisher = Publisher.new(aws_client, propono_config, topic_name, message)
+      publisher = Publisher.new(aws_client, propono_config, topic_name, message, message_group_id: 't-1')
       publisher.stubs(id: id)
       publisher.publish
     end
@@ -95,14 +96,14 @@ module Propono
 
       sns = mock()
       sns.expects(:publish).with(topic_arn, body.to_json).returns(:response)
-      publisher = Publisher.new(aws_client, propono_config, topic, message, async: true)
+      publisher = Publisher.new(aws_client, propono_config, topic, message, async: true, message_group_id: 't-1')
       publisher.stubs(id: id, sns: sns)
       assert_same :response, publisher.send(:publish_syncronously).value
     end
 
     def test_publish_should_propogate_exception_on_topic_creation_error
-      aws_client.expects(:create_topic).raises(RuntimeError)
-      publisher = Publisher.new(aws_client, propono_config, "topic", "message")
+      aws_client.expects(:create_queue).raises(RuntimeError)
+      publisher = Publisher.new(aws_client, propono_config, "topic", "message", message_group_id: 't-1')
 
       assert_raises(RuntimeError) do
         publisher.publish
@@ -111,25 +112,25 @@ module Propono
 
     def test_publish_should_raise_exception_if_topic_is_nil
       assert_raises(PublisherError, "Topic is nil") do
-        Publisher.publish(aws_client, propono_config, nil, "foobar")
+        Publisher.publish(aws_client, propono_config, nil, "foobar", message_group_id: 't-1')
       end
     end
 
     def test_publish_should_raise_exception_if_message_is_nil
       assert_raises(PublisherError, "Message is nil") do
-        Publisher.publish(aws_client, propono_config, "foobar", nil)
+        Publisher.publish(aws_client, propono_config, "foobar", nil, message_group_id: 't-1')
       end
     end
 
     def test_publish_can_be_called_syncronously
-      publisher = Publisher.new(aws_client, propono_config, "topic_name", "message", async: true)
+      publisher = Publisher.new(aws_client, propono_config, "topic_name", "message", async: true, message_group_id: 't-1')
       publisher.expects(:publish_syncronously).never
       publisher.expects(:publish_asyncronously).once
       publisher.publish
     end
 
     def test_publish_is_normally_called_syncronously
-      publisher = Publisher.new(aws_client, propono_config, "topic_name", "message")
+      publisher = Publisher.new(aws_client, propono_config, "topic_name", "message", message_group_id: 't-1')
       publisher.expects(:publish_syncronously)
       publisher.publish
     end

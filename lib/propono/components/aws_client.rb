@@ -1,4 +1,3 @@
-require 'aws-sdk-sns'
 require 'aws-sdk-sqs'
 
 module Propono
@@ -8,40 +7,25 @@ module Propono
       @aws_config = aws_config
     end
 
-    def publish_to_sns(topic, message)
-      sns_client.publish(
-        topic_arn: topic.arn,
-        message: message.to_json
-      )
-    end
-
-    def send_to_sqs(queue, message)
+    def send_to_sqs(queue, message, message_group_id)
       sqs_client.send_message(
         queue_url: queue.url,
-        message_body: message
+        message_body: message.to_json,
+        message_group_id: message_group_id,
+        message_deduplication_id: SecureRandom.uuid
       )
     end
 
-    def create_topic(name)
-      Topic.new(sns_client.create_topic(name: name))
-    end
-
-    def create_queue(name, aditional_attributes)
-      url = sqs_client.create_queue(queue_name: name).queue_url
+    def create_queue(name, additional_attributes)
+      name += '.fifo' unless name.end_with? '.fifo'
+      url = sqs_client.create_queue(queue_name: name, attributes: { 'FifoQueue' => 'true' }).queue_url
       attributes = sqs_client.get_queue_attributes(queue_url: url, attribute_names: ["QueueArn"]).attributes
-      attributes.merge!(aditional_attributes)
+      attributes.merge!(additional_attributes)
       Queue.new(url, attributes)
     end
 
-    def subscribe_sqs_to_sns(queue, topic)
-      sns_client.subscribe(
-        topic_arn: topic.arn,
-        protocol: 'sqs',
-        endpoint: queue.arn
-      )
-    end
-
     def set_sqs_policy(queue, policy)
+      return
       sqs_client.set_queue_attributes(
         queue_url: queue.url,
         attributes: { Policy: policy }
@@ -67,10 +51,6 @@ module Propono
     end
 
     private
-
-    def sns_client
-      @sns_client ||= Aws::SNS::Client.new(aws_config.aws_options)
-    end
 
     def sqs_client
       @sqs_client ||= Aws::SQS::Client.new(aws_config.aws_options)

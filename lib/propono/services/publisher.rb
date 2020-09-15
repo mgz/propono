@@ -11,7 +11,7 @@ module Propono
 
     attr_reader :aws_client, :propono_config, :topic_name, :message, :id, :async
 
-    def initialize(aws_client, propono_config, topic_name, message, async: false, id: nil)
+    def initialize(aws_client, propono_config, topic_name, message, async: false, id: nil, message_group_id:)
       raise PublisherError.new("Topic is nil") if topic_name.nil?
       raise PublisherError.new("Message is nil") if message.nil?
 
@@ -20,6 +20,7 @@ module Propono
       @topic_name = topic_name
       @message = message
       @async = async
+      @message_group_id = message_group_id
 
       random_id = SecureRandom.hex(3)
       @id = id ? "#{id}-#{random_id}" : random_id
@@ -38,14 +39,14 @@ module Propono
 
     def publish_syncronously
       begin
-        topic = aws_client.create_topic(topic_name)
+        queue = aws_client.create_queue(topic_name, { FifoQueue: true })
       rescue => e
         propono_config.logger.error "Propono [#{id}]: Failed to get or create topic #{topic_name}: #{e}"
         raise
       end
 
       begin
-        aws_client.publish_to_sns(topic, body)
+        aws_client.send_to_sqs(queue, body, @message_group_id)
       rescue => e
         propono_config.logger.error "Propono [#{id}]: Failed to send via sns: #{e}"
         raise

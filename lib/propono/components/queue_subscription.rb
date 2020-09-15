@@ -1,7 +1,7 @@
 module Propono
   class QueueSubscription
 
-    attr_reader :aws_client, :propono_config, :topic_arn, :queue_name, :queue, :failed_queue, :corrupt_queue, :slow_queue
+    attr_reader :aws_client, :propono_config, :topic_arn, :queue_name, :queue
 
     def self.create(*args)
       new(*args).tap do |subscription|
@@ -15,38 +15,23 @@ module Propono
       @topic_name = topic_name
       @suffixed_topic_name = "#{topic_name}#{propono_config.queue_suffix}"
       @suffixed_slow_topic_name = "#{topic_name}#{propono_config.queue_suffix}-slow"
-      @queue_name = "#{propono_config.application_name.tr(" ", "_")}-#{@suffixed_topic_name}"
+      @queue_name = topic_name
     end
 
     def create
       raise ProponoError.new("topic_name is nil") unless @topic_name
-      create_and_subscribe_main_queue
-      create_and_subscribe_slow_queue
-      create_misc_queues
+      create_main_queue
     end
 
-    def create_and_subscribe_main_queue
-      @queue = aws_client.create_queue("#{queue_name}.fifo", { FifoQueue: true })
-      topic = aws_client.create_topic(@suffixed_topic_name)
-      aws_client.subscribe_sqs_to_sns(@queue, topic)
-      aws_client.set_sqs_policy(@queue, generate_policy(@queue, topic))
-    end
-
-    def create_misc_queues
-      @failed_queue = aws_client.create_queue("#{queue_name}-failed.fifo", { FifoQueue: true })
-      @corrupt_queue = aws_client.create_queue("#{queue_name}-corrupt.fifo", { FifoQueue: true })
-    end
-
-    def create_and_subscribe_slow_queue
-      @slow_queue = aws_client.create_queue("#{queue_name}-slow.fifo", { FifoQueue: true })
-      slow_topic = aws_client.create_topic(@suffixed_slow_topic_name)
-      aws_client.subscribe_sqs_to_sns(@slow_queue, slow_topic)
-      aws_client.set_sqs_policy(@slow_queue, generate_policy(@slow_queue, slow_topic))
+    def create_main_queue
+      @queue = aws_client.create_queue(queue_name, { FifoQueue: true })
+      aws_client.set_sqs_policy(@queue, generate_policy(@queue))
     end
 
     private
 
-    def generate_policy(queue, topic)
+    def generate_policy(queue)
+      return
       <<-EOS
         {
           "Version": "2008-10-17",
@@ -59,12 +44,7 @@ module Propono
                 "AWS": "*"
               },
               "Action": "SQS:*",
-              "Resource": "#{queue.arn}",
-              "Condition": {
-                "StringEquals": {
-                  "aws:SourceArn": "#{topic.arn}"
-                }
-              }
+              "Resource": "#{queue.arn}",              
             }
           ]
         }

@@ -29,7 +29,6 @@ class Minitest::Test
 
   def aws_client
     @aws_client ||= Propono::AwsClient.new(mock).tap do |c|
-      c.stubs(:sns_client)
       c.stubs(:sqs_client)
     end
   end

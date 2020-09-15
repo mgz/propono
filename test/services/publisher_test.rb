@@ -50,8 +50,8 @@ module Propono
       topic_arn = "arn123"
       topic.stubs(arn: topic_arn)
 
-      aws_client.expects(:create_topic).with(topic_name).returns(topic)
-      aws_client.expects(:publish_to_sns).with(
+      aws_client.expects(:create_queue).with(topic_name, {:FifoQueue => true}).returns(topic)
+      aws_client.expects(:send_to_sqs).with(
         topic,
         {id: id, message: message}
       )
@@ -75,8 +75,8 @@ module Propono
       topic_arn = "arn123"
       topic.stubs(arn: topic_arn)
 
-      aws_client.expects(:create_topic).with(topic_name).returns(topic)
-      aws_client.expects(:publish_to_sns).with(topic, body)
+      aws_client.expects(:create_queue).with(topic_name, {:FifoQueue => true}).returns(topic)
+      aws_client.expects(:send_to_sqs).with(topic, body)
 
       publisher = Publisher.new(aws_client, propono_config, topic_name, message)
       publisher.stubs(id: id)
@@ -101,7 +101,7 @@ module Propono
     end
 
     def test_publish_should_propogate_exception_on_topic_creation_error
-      aws_client.expects(:create_topic).raises(RuntimeError)
+      aws_client.expects(:create_queue).raises(RuntimeError)
       publisher = Publisher.new(aws_client, propono_config, "topic", "message")
 
       assert_raises(RuntimeError) do

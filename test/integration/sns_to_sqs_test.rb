@@ -9,13 +9,11 @@ module Propono
       message_received = false
 
       propono_client.drain_queue(topic)
-      propono_client.subscribe(topic)
 
       thread = Thread.new do
         begin
-          propono_client.listen(topic) do |message, context|
+          propono_client.listen(topic) do |message|
             flunks << "Wrong message" unless message == text
-            flunks << "Wrong id" unless context[:id] =~ Regexp.new("[a-z0-9]{6}")
             message_received = true
             thread.terminate
           end

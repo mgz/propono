@@ -38,14 +38,14 @@ module Propono
 
     def publish_syncronously
       begin
-        topic = aws_client.create_topic(topic_name)
+        queue = aws_client.create_queue(topic_name, { FifoQueue: true })
       rescue => e
         propono_config.logger.error "Propono [#{id}]: Failed to get or create topic #{topic_name}: #{e}"
         raise
       end
 
       begin
-        aws_client.publish_to_sns(topic, body)
+        aws_client.send_to_sqs(queue, body)
       rescue => e
         propono_config.logger.error "Propono [#{id}]: Failed to send via sns: #{e}"
         raise

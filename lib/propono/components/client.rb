@@ -49,15 +49,6 @@ module Propono
       Publisher.publish(aws_client, config, suffixed_topic, message, options)
     end
 
-    # Creates a new SNS-SQS subscription on the specified topic.
-    #
-    # This is implicitly called by {#listen}.
-    #
-    # @param [String] topic The name of the topic to subscribe to.
-    def subscribe(topic)
-      QueueSubscription.create(aws_client, config, topic)
-    end
-
     # Listens on a queue and yields for each message
     #
     # Calling this will enter a queue-listening loop that

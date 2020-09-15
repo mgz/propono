@@ -16,11 +16,11 @@ module Propono
       )
     end
 
-    def create_queue(name, aditional_attributes)
+    def create_queue(name, additional_attributes)
       name += '.fifo' unless name.end_with? '.fifo'
       url = sqs_client.create_queue(queue_name: name, attributes: { 'FifoQueue' => 'true' }).queue_url
       attributes = sqs_client.get_queue_attributes(queue_url: url, attribute_names: ["QueueArn"]).attributes
-      attributes.merge!(aditional_attributes)
+      attributes.merge!(additional_attributes)
       Queue.new(url, attributes)
     end
 

@@ -32,7 +32,7 @@ module Propono
 
       sleep(1) # Make sure the listener has started
 
-      propono_client.publish(topic, text, message_group_id: 't-1')
+      propono_client.publish(topic, text, message_group_id: SecureRandom.hex)
       flunks << "Test Timeout" unless wait_for_thread(thread)
       flunk(flunks.join("\n")) unless flunks.empty?
     ensure

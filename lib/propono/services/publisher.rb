@@ -54,10 +54,7 @@ module Propono
     end
 
     def body
-      {
-        id: id,
-        message: message
-      }
+      message
     end
   end
 end

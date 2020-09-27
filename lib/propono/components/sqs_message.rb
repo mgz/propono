@@ -3,7 +3,7 @@ module Propono
     attr_reader :message, :receipt_handle, :failure_count
     def initialize(raw_message)
       raw_body = raw_message.body
-      @raw_body_json = JSON.parse(raw_body)
+      @raw_body_json = JSON.parse(raw_body, symbolize_names: true)
       body = @raw_body_json['message']
 
       # @context        = Propono::Utils.symbolize_keys body

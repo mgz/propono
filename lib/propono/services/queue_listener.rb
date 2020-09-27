@@ -73,7 +73,6 @@ module Propono
       process_message(sqs_message)
     rescue => e
       propono_config.logger.error("Failed to handle message #{e.message} #{e.backtrace}")
-      requeue_message_on_failure(sqs_message, e)
     end
 
     def process_message(sqs_message)
